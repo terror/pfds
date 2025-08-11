@@ -11,23 +11,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This project uses `just` (a command runner) for build automation. Available commands:
 
 - `just build` - Build the project with cargo
-- `just test` - Run tests with cargo test
-- `just clippy` - Run clippy linter on all targets and features
+- `just test` - Run tests with cargo test  
+- `just clippy` - Run clippy linter
 - `just fmt` - Format code using nightly rustfmt
 - `just fmt-check` - Check if code is properly formatted
 - `just watch` - Watch for changes and run tests (default), or specify command like `just watch clippy`
-- `just all` - Run build, test, clippy, and fmt-check
+- `just all` - Run build, test, clippy, and fmt-check (comprehensive check)
+
+To run a single test: `cargo test test_name`
 
 ## Code Architecture
 
-The project follows a simple Rust library structure:
-- `src/lib.rs` - Main library module that declares other modules
-- `src/stream.rs` - Currently empty, likely intended for stream-based data structures
-- The codebase is in early development with minimal implementation
+The project implements lazy, purely functional data structures:
+
+### Core Modules
+- `src/lib.rs` - Main library module that exports public APIs and common imports
+- `src/stream.rs` - Lazy stream implementation using suspended computations (`Rc<dyn Fn()>`)
+- `src/queue.rs` - Queue trait and BankersQueue implementation
+
+### Key Design Patterns
+- **Lazy Evaluation**: Streams use `Rc<dyn Fn()>` closures to defer computation until needed
+- **Structural Sharing**: Data structures are immutable and share structure between versions
+- **Lifetime Management**: All structures use lifetime parameter `'a` for borrowed data
+- **Trait-based Design**: Core operations defined through traits (e.g., `Queue<'a, T>`)
+
+### Data Structures
+- `Stream<'a, T>` - Lazy, potentially infinite sequences with operations like `cons`, `head`, `tail`, `append`, `reverse`
+- `BankersQueue<'a, T>` - Amortized O(1) queue using two streams with automatic rebalancing when `len_rear > len_front`
 
 ## Development Setup
 
 - Uses Rust 2021 edition
 - Requires nightly Rust for formatting (`cargo +nightly fmt`)
-- No external dependencies currently (pure Rust implementation)
-- Uses standard Rust project structure with Cargo.toml
+- No external dependencies (pure Rust implementation)  
+- Custom rustfmt config: 80-char width, 2-space indentation, Unix newlines
