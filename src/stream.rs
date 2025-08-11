@@ -57,7 +57,7 @@ impl<'a, T: Clone + 'a> From<Stream<'a, T>> for Vec<T> {
   }
 }
 
-impl<'a, T: 'a> Stream<'a, T> {
+impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// Appends another stream to the end of this stream.
   ///
   /// Returns a new stream containing all elements from this stream
@@ -72,10 +72,7 @@ impl<'a, T: 'a> Stream<'a, T> {
   /// let vec: Vec<i32> = result.into();
   /// assert_eq!(vec, vec![1, 2, 3, 4, 5, 6]);
   /// ```
-  pub fn append(self, other: Stream<'a, T>) -> Stream<'a, T>
-  where
-    T: Clone,
-  {
+  pub fn append(self, other: Stream<'a, T>) -> Stream<'a, T> {
     Stream {
       cell: Rc::new(move || match self.force() {
         StreamCell::Nil => other.force(),
@@ -97,10 +94,7 @@ impl<'a, T: 'a> Stream<'a, T> {
   /// let vec: Vec<i32> = stream.into();
   /// assert_eq!(vec, vec![1, 2]);
   /// ```
-  pub fn cons(head: T, tail: Stream<'a, T>) -> Stream<'a, T>
-  where
-    T: Clone,
-  {
+  pub fn cons(head: T, tail: Stream<'a, T>) -> Stream<'a, T> {
     Stream {
       cell: Rc::new(move || StreamCell::Cons(head.clone(), tail.clone())),
     }
@@ -119,14 +113,11 @@ impl<'a, T: 'a> Stream<'a, T> {
   /// let vec: Vec<i32> = result.into();
   /// assert_eq!(vec, vec![3, 4, 5]);
   /// ```
-  pub fn drop(self, n: usize) -> Stream<'a, T>
-  where
-    T: Clone,
-  {
-    fn drop_helper<'a, T: Clone + 'a>(
+  pub fn drop(self, n: usize) -> Stream<'a, T> {
+    fn drop_helper<'b, U: Clone + 'b>(
       n: usize,
-      stream: Stream<'a, T>,
-    ) -> StreamCell<'a, T> {
+      stream: Stream<'b, U>,
+    ) -> StreamCell<'b, U> {
       if n == 0 {
         stream.force()
       } else {
@@ -221,14 +212,11 @@ impl<'a, T: 'a> Stream<'a, T> {
   /// let vec: Vec<i32> = result.into();
   /// assert_eq!(vec, vec![5, 4, 3, 2, 1]);
   /// ```
-  pub fn reverse(self) -> Stream<'a, T>
-  where
-    T: Clone,
-  {
-    fn reverse_helper<'a, T: Clone + 'a>(
-      stream: Stream<'a, T>,
-      acc: Stream<'a, T>,
-    ) -> StreamCell<'a, T> {
+  pub fn reverse(self) -> Stream<'a, T> {
+    fn reverse_helper<'b, U: Clone + 'b>(
+      stream: Stream<'b, U>,
+      acc: Stream<'b, U>,
+    ) -> StreamCell<'b, U> {
       match stream.force() {
         StreamCell::Nil => acc.force(),
         StreamCell::Cons(x, tail) => reverse_helper(tail, Stream::cons(x, acc)),
