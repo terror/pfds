@@ -12,7 +12,7 @@ pub struct Stream<'a, T> {
 
 impl<'a, T: Clone + Debug + 'a> Debug for Stream<'a, T> {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    write!(f, "Stream({:?})", Into::<Vec<T>>::into(self.clone()))
+    write!(f, "{:?}", Into::<Vec<T>>::into(self.clone()))
   }
 }
 
