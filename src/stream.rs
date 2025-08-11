@@ -39,21 +39,10 @@ impl<'a, T: Clone + PartialEq + 'a> PartialEq for Stream<'a, T> {
 
 impl<'a, T: Clone + 'a> From<Stream<'a, T>> for Vec<T> {
   fn from(stream: Stream<'a, T>) -> Self {
-    let mut result = Vec::new();
-
-    let mut current = stream;
-
-    loop {
-      match current.force() {
-        StreamCell::Nil => break,
-        StreamCell::Cons(x, tail) => {
-          result.push(x);
-          current = tail;
-        }
-      }
+    match stream.force() {
+      StreamCell::Nil => Vec::new(),
+      StreamCell::Cons(x, tail) => [vec![x], Vec::from(tail)].concat(),
     }
-
-    result
   }
 }
 
@@ -114,22 +103,17 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// assert_eq!(vec, vec![3, 4, 5]);
   /// ```
   pub fn drop(self, n: usize) -> Stream<'a, T> {
-    fn drop_helper<'b, U: Clone + 'b>(
-      n: usize,
-      stream: Stream<'b, U>,
-    ) -> StreamCell<'b, U> {
-      if n == 0 {
-        stream.force()
-      } else {
-        match stream.force() {
-          StreamCell::Nil => StreamCell::Nil,
-          StreamCell::Cons(_, tail) => drop_helper(n - 1, tail),
-        }
-      }
-    }
-
     Stream {
-      cell: Rc::new(move || drop_helper(n, self.clone())),
+      cell: Rc::new(move || {
+        if n == 0 {
+          self.force()
+        } else {
+          match self.force() {
+            StreamCell::Nil => StreamCell::Nil,
+            StreamCell::Cons(_, tail) => tail.drop(n - 1).force(),
+          }
+        }
+      }),
     }
   }
 
@@ -213,18 +197,14 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// assert_eq!(vec, vec![5, 4, 3, 2, 1]);
   /// ```
   pub fn reverse(self) -> Stream<'a, T> {
-    fn reverse_helper<'b, U: Clone + 'b>(
-      stream: Stream<'b, U>,
-      acc: Stream<'b, U>,
-    ) -> StreamCell<'b, U> {
-      match stream.force() {
-        StreamCell::Nil => acc.force(),
-        StreamCell::Cons(x, tail) => reverse_helper(tail, Stream::cons(x, acc)),
-      }
-    }
-
     Stream {
-      cell: Rc::new(move || reverse_helper(self.clone(), Stream::nil())),
+      cell: Rc::new(move || match self.force() {
+        StreamCell::Nil => StreamCell::Nil,
+        StreamCell::Cons(x, tail) => tail
+          .reverse()
+          .append(Stream::cons(x, Stream::nil()))
+          .force(),
+      }),
     }
   }
 
