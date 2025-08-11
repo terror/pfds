@@ -1,8 +1,12 @@
 use std::{
-  fmt::{self, Debug, Formatter},
+  fmt::{self, Debug, Display, Formatter},
   rc::Rc,
 };
 
+mod queue;
 mod stream;
 
-pub use stream::{Stream, StreamCell};
+pub use {
+  queue::{BankersQueue, Queue, QueueError},
+  stream::{Stream, StreamCell},
+};
