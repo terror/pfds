@@ -25,6 +25,20 @@ impl<'a, T: Clone + 'a> From<Vec<T>> for Stream<'a, T> {
   }
 }
 
+impl<'a, T: Clone + 'a> Iterator for Stream<'a, T> {
+  type Item = T;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    match self.force() {
+      StreamCell::Nil => None,
+      StreamCell::Cons(x, tail) => {
+        *self = tail;
+        Some(x)
+      }
+    }
+  }
+}
+
 impl<'a, T: Clone + PartialEq + 'a> PartialEq for Stream<'a, T> {
   fn eq(&self, other: &Self) -> bool {
     match (self.force(), other.force()) {
@@ -258,7 +272,10 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
+  use {
+    super::*,
+    std::sync::{Arc, Mutex},
+  };
 
   #[test]
   fn append() {
@@ -344,5 +361,46 @@ mod tests {
   #[test]
   fn take_zero() {
     assert_eq!(Stream::<i32>::from(vec![1, 2, 3]).take(0), Stream::nil());
+  }
+
+  #[test]
+  fn iterator() {
+    let mut stream = Stream::<i32>::from(vec![1, 2, 3]);
+    assert_eq!(stream.next(), Some(1));
+    assert_eq!(stream.next(), Some(2));
+    assert_eq!(stream.next(), Some(3));
+    assert_eq!(stream.next(), None);
+  }
+
+  #[test]
+  fn iterator_collect() {
+    assert_eq!(
+      Stream::<i32>::from(vec![1, 2, 3, 4, 5]).collect::<Vec<i32>>(),
+      vec![1, 2, 3, 4, 5]
+    );
+  }
+
+  #[test]
+  fn lazy_evaluation() {
+    let counter = Arc::new(Mutex::new(0));
+
+    let counter_clone = counter.clone();
+
+    let stream = Stream {
+      cell: Rc::new(move || {
+        *counter_clone.lock().unwrap() += 1;
+        StreamCell::Cons(42, Stream::nil())
+      }),
+    };
+
+    let _dropped = stream.clone().drop(1);
+    let _taken = stream.clone().take(1);
+    let _reversed = stream.clone().reverse();
+
+    assert_eq!(*counter.lock().unwrap(), 0);
+
+    let _ = stream.head();
+
+    assert_eq!(*counter.lock().unwrap(), 1);
   }
 }
