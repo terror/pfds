@@ -1,22 +1,22 @@
 use super::*;
 
-pub enum StreamCell<T> {
+pub enum StreamCell<'a, T> {
   Nil,
-  Cons(T, Stream<T>),
+  Cons(T, Stream<'a, T>),
 }
 
 #[derive(Clone)]
-pub struct Stream<T> {
-  cell: Rc<dyn Fn() -> StreamCell<T>>,
+pub struct Stream<'a, T> {
+  cell: Rc<dyn Fn() -> StreamCell<'a, T> + 'a>,
 }
 
-impl<T: Clone + Debug> Debug for Stream<T> {
+impl<'a, T: Clone + Debug + 'a> Debug for Stream<'a, T> {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     write!(f, "Stream({:?})", Into::<Vec<T>>::into(self.clone()))
   }
 }
 
-impl<T: Clone + 'static> From<Vec<T>> for Stream<T> {
+impl<'a, T: Clone + 'a> From<Vec<T>> for Stream<'a, T> {
   fn from(vec: Vec<T>) -> Self {
     vec
       .into_iter()
@@ -25,7 +25,7 @@ impl<T: Clone + 'static> From<Vec<T>> for Stream<T> {
   }
 }
 
-impl<T: Clone + PartialEq> PartialEq for Stream<T> {
+impl<'a, T: Clone + PartialEq + 'a> PartialEq for Stream<'a, T> {
   fn eq(&self, other: &Self) -> bool {
     match (self.force(), other.force()) {
       (StreamCell::Nil, StreamCell::Nil) => true,
@@ -37,8 +37,8 @@ impl<T: Clone + PartialEq> PartialEq for Stream<T> {
   }
 }
 
-impl<T: Clone> From<Stream<T>> for Vec<T> {
-  fn from(stream: Stream<T>) -> Self {
+impl<'a, T: Clone + 'a> From<Stream<'a, T>> for Vec<T> {
+  fn from(stream: Stream<'a, T>) -> Self {
     let mut result = Vec::new();
 
     let mut current = stream;
@@ -57,7 +57,7 @@ impl<T: Clone> From<Stream<T>> for Vec<T> {
   }
 }
 
-impl<T> Stream<T> {
+impl<'a, T: 'a> Stream<'a, T> {
   /// Appends another stream to the end of this stream.
   ///
   /// Returns a new stream containing all elements from this stream
@@ -72,9 +72,9 @@ impl<T> Stream<T> {
   /// let vec: Vec<i32> = result.into();
   /// assert_eq!(vec, vec![1, 2, 3, 4, 5, 6]);
   /// ```
-  pub fn append(self, other: Stream<T>) -> Stream<T>
+  pub fn append(self, other: Stream<'a, T>) -> Stream<'a, T>
   where
-    T: Clone + 'static,
+    T: Clone,
   {
     Stream {
       cell: Rc::new(move || match self.force() {
@@ -97,9 +97,9 @@ impl<T> Stream<T> {
   /// let vec: Vec<i32> = stream.into();
   /// assert_eq!(vec, vec![1, 2]);
   /// ```
-  pub fn cons(head: T, tail: Stream<T>) -> Stream<T>
+  pub fn cons(head: T, tail: Stream<'a, T>) -> Stream<'a, T>
   where
-    T: Clone + 'static,
+    T: Clone,
   {
     Stream {
       cell: Rc::new(move || StreamCell::Cons(head.clone(), tail.clone())),
@@ -119,14 +119,14 @@ impl<T> Stream<T> {
   /// let vec: Vec<i32> = result.into();
   /// assert_eq!(vec, vec![3, 4, 5]);
   /// ```
-  pub fn drop(self, n: usize) -> Stream<T>
+  pub fn drop(self, n: usize) -> Stream<'a, T>
   where
-    T: Clone + 'static,
+    T: Clone,
   {
-    fn drop_helper<T: Clone + 'static>(
+    fn drop_helper<'a, T: Clone + 'a>(
       n: usize,
-      stream: Stream<T>,
-    ) -> StreamCell<T> {
+      stream: Stream<'a, T>,
+    ) -> StreamCell<'a, T> {
       if n == 0 {
         stream.force()
       } else {
@@ -153,7 +153,7 @@ impl<T> Stream<T> {
   /// let stream: Stream<i32> = Stream::nil();
   /// assert!(matches!(stream.force(), StreamCell::Nil));
   /// ```
-  pub fn force(&self) -> StreamCell<T> {
+  pub fn force(&self) -> StreamCell<'a, T> {
     (self.cell)()
   }
 
@@ -170,10 +170,7 @@ impl<T> Stream<T> {
   /// let empty: Stream<i32> = Stream::nil();
   /// assert_eq!(empty.head(), None);
   /// ```
-  pub fn head(&self) -> Option<T>
-  where
-    T: Clone,
-  {
+  pub fn head(&self) -> Option<T> {
     match self.force() {
       StreamCell::Nil => None,
       StreamCell::Cons(x, _) => Some(x),
@@ -206,7 +203,7 @@ impl<T> Stream<T> {
   /// let empty: Stream<i32> = Stream::nil();
   /// assert!(empty.is_empty());
   /// ```
-  pub fn nil() -> Stream<T> {
+  pub fn nil() -> Stream<'a, T> {
     Stream {
       cell: Rc::new(|| StreamCell::Nil),
     }
@@ -224,14 +221,14 @@ impl<T> Stream<T> {
   /// let vec: Vec<i32> = result.into();
   /// assert_eq!(vec, vec![5, 4, 3, 2, 1]);
   /// ```
-  pub fn reverse(self) -> Stream<T>
+  pub fn reverse(self) -> Stream<'a, T>
   where
-    T: Clone + 'static,
+    T: Clone,
   {
-    fn reverse_helper<T: Clone + 'static>(
-      stream: Stream<T>,
-      acc: Stream<T>,
-    ) -> StreamCell<T> {
+    fn reverse_helper<'a, T: Clone + 'a>(
+      stream: Stream<'a, T>,
+      acc: Stream<'a, T>,
+    ) -> StreamCell<'a, T> {
       match stream.force() {
         StreamCell::Nil => acc.force(),
         StreamCell::Cons(x, tail) => reverse_helper(tail, Stream::cons(x, acc)),
@@ -255,10 +252,7 @@ impl<T> Stream<T> {
   /// let vec: Vec<i32> = tail.into();
   /// assert_eq!(vec, vec![2]);
   /// ```
-  pub fn tail(&self) -> Option<Stream<T>>
-  where
-    T: Clone,
-  {
+  pub fn tail(&self) -> Option<Stream<'a, T>> {
     match self.force() {
       StreamCell::Nil => None,
       StreamCell::Cons(_, tail) => Some(tail),
@@ -278,10 +272,7 @@ impl<T> Stream<T> {
   /// let vec: Vec<i32> = result.into();
   /// assert_eq!(vec, vec![1, 2, 3]);
   /// ```
-  pub fn take(self, n: usize) -> Stream<T>
-  where
-    T: Clone + 'static,
-  {
+  pub fn take(self, n: usize) -> Stream<'a, T> {
     Stream {
       cell: Rc::new(move || {
         if n == 0 {
