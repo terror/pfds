@@ -68,7 +68,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let s1: Stream<i32> = vec![1, 2, 3].into();
   /// let s2: Stream<i32> = vec![4, 5, 6].into();
   /// let result = s1.append(s2);
@@ -92,7 +92,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let stream = Stream::cons(1, Stream::cons(2, Stream::nil()));
   /// let vec: Vec<i32> = stream.into();
   /// assert_eq!(vec, vec![1, 2]);
@@ -110,7 +110,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let stream: Stream<i32> = vec![1, 2, 3, 4, 5].into();
   /// let result = stream.drop(2);
   /// let vec: Vec<i32> = result.into();
@@ -138,7 +138,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::{Stream, StreamCell};
+  /// use pfds::stream::{Stream, StreamCell};
   /// let stream: Stream<i32> = Stream::nil();
   /// assert!(matches!(stream.force(), StreamCell::Nil));
   /// ```
@@ -152,7 +152,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let stream = Stream::cons(42, Stream::nil());
   /// assert_eq!(stream.head(), Some(42));
   ///
@@ -170,7 +170,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let empty: Stream<i32> = Stream::nil();
   /// assert!(empty.is_empty());
   ///
@@ -188,7 +188,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let empty: Stream<i32> = Stream::nil();
   /// assert!(empty.is_empty());
   /// ```
@@ -204,7 +204,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let stream: Stream<i32> = vec![1, 2, 3, 4, 5].into();
   /// let result = stream.reverse();
   /// let vec: Vec<i32> = result.into();
@@ -228,7 +228,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let stream = Stream::cons(1, Stream::cons(2, Stream::nil()));
   /// let tail = stream.tail().unwrap();
   /// let vec: Vec<i32> = tail.into();
@@ -248,7 +248,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   ///
   /// # Examples
   /// ```
-  /// use pfds::Stream;
+  /// use pfds::stream::Stream;
   /// let stream: Stream<i32> = vec![1, 2, 3, 4, 5].into();
   /// let result = stream.take(3);
   /// let vec: Vec<i32> = result.into();
