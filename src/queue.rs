@@ -15,7 +15,7 @@ impl Display for QueueError {
 
 impl std::error::Error for QueueError {}
 
-pub trait Queue<'a, T: Clone + 'a> {
+pub trait Queue<'a, T: Clone + Send + Sync + 'a> {
   /// Creates an empty queue.
   fn empty() -> Self;
 
@@ -68,14 +68,14 @@ pub trait Queue<'a, T: Clone + 'a> {
 /// assert_eq!(q.head().unwrap(), 2);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct BankersQueue<'a, T: Clone + 'a> {
+pub struct BankersQueue<'a, T: Clone + Send + Sync + 'a> {
   front: Stream<'a, T>,
   len_front: usize,
   rear: Stream<'a, T>,
   len_rear: usize,
 }
 
-impl<'a, T: Clone + 'a> Queue<'a, T> for BankersQueue<'a, T> {
+impl<'a, T: Clone + Send + Sync + 'a> Queue<'a, T> for BankersQueue<'a, T> {
   /// Creates a new empty queue.
   ///
   /// # Examples
@@ -175,7 +175,7 @@ impl<'a, T: Clone + 'a> Queue<'a, T> for BankersQueue<'a, T> {
   }
 }
 
-impl<'a, T: Clone + 'a> BankersQueue<'a, T> {
+impl<'a, T: Clone + Send + Sync + 'a> BankersQueue<'a, T> {
   /// Internal constructor that maintains the queue invariant.
   ///
   /// Ensures that `len_r ≤ len_f` by rebalancing when necessary.

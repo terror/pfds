@@ -1,6 +1,6 @@
 use std::{
   fmt::{self, Debug, Display, Formatter},
-  rc::Rc,
+  sync::Arc,
 };
 
 mod queue;

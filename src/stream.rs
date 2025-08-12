@@ -7,16 +7,16 @@ pub enum StreamCell<'a, T> {
 
 #[derive(Clone)]
 pub struct Stream<'a, T> {
-  cell: Rc<dyn Fn() -> StreamCell<'a, T> + 'a>,
+  cell: Arc<dyn Fn() -> StreamCell<'a, T> + Send + Sync + 'a>,
 }
 
-impl<'a, T: Clone + Debug + 'a> Debug for Stream<'a, T> {
+impl<'a, T: Clone + Debug + Send + Sync + 'a> Debug for Stream<'a, T> {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     write!(f, "{:?}", Into::<Vec<T>>::into(self.clone()))
   }
 }
 
-impl<'a, T: Clone + 'a> From<Vec<T>> for Stream<'a, T> {
+impl<'a, T: Clone + Send + Sync + 'a> From<Vec<T>> for Stream<'a, T> {
   fn from(vec: Vec<T>) -> Self {
     vec
       .into_iter()
@@ -25,7 +25,7 @@ impl<'a, T: Clone + 'a> From<Vec<T>> for Stream<'a, T> {
   }
 }
 
-impl<'a, T: Clone + 'a> Iterator for Stream<'a, T> {
+impl<'a, T: Clone + Send + Sync + 'a> Iterator for Stream<'a, T> {
   type Item = T;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -39,7 +39,7 @@ impl<'a, T: Clone + 'a> Iterator for Stream<'a, T> {
   }
 }
 
-impl<'a, T: Clone + PartialEq + 'a> PartialEq for Stream<'a, T> {
+impl<'a, T: Clone + PartialEq + Send + Sync + 'a> PartialEq for Stream<'a, T> {
   fn eq(&self, other: &Self) -> bool {
     match (self.force(), other.force()) {
       (StreamCell::Nil, StreamCell::Nil) => true,
@@ -51,7 +51,7 @@ impl<'a, T: Clone + PartialEq + 'a> PartialEq for Stream<'a, T> {
   }
 }
 
-impl<'a, T: Clone + 'a> From<Stream<'a, T>> for Vec<T> {
+impl<'a, T: Clone + Send + Sync + 'a> From<Stream<'a, T>> for Vec<T> {
   fn from(stream: Stream<'a, T>) -> Self {
     match stream.force() {
       StreamCell::Nil => Vec::new(),
@@ -60,7 +60,7 @@ impl<'a, T: Clone + 'a> From<Stream<'a, T>> for Vec<T> {
   }
 }
 
-impl<'a, T: Clone + 'a> Stream<'a, T> {
+impl<'a, T: Clone + Send + Sync + 'a> Stream<'a, T> {
   /// Appends another stream to the end of this stream.
   ///
   /// Returns a new stream containing all elements from this stream
@@ -77,7 +77,7 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// ```
   pub fn append(self, other: Stream<'a, T>) -> Stream<'a, T> {
     Stream {
-      cell: Rc::new(move || match self.force() {
+      cell: Arc::new(move || match self.force() {
         StreamCell::Nil => other.force(),
         StreamCell::Cons(x, tail) => {
           StreamCell::Cons(x, tail.append(other.clone()))
@@ -99,7 +99,7 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// ```
   pub fn cons(head: T, tail: Stream<'a, T>) -> Stream<'a, T> {
     Stream {
-      cell: Rc::new(move || StreamCell::Cons(head.clone(), tail.clone())),
+      cell: Arc::new(move || StreamCell::Cons(head.clone(), tail.clone())),
     }
   }
 
@@ -118,7 +118,7 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// ```
   pub fn drop(self, n: usize) -> Stream<'a, T> {
     Stream {
-      cell: Rc::new(move || {
+      cell: Arc::new(move || {
         if n == 0 {
           self.force()
         } else {
@@ -194,7 +194,7 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// ```
   pub fn nil() -> Stream<'a, T> {
     Stream {
-      cell: Rc::new(|| StreamCell::Nil),
+      cell: Arc::new(|| StreamCell::Nil),
     }
   }
 
@@ -212,7 +212,7 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// ```
   pub fn reverse(self) -> Stream<'a, T> {
     Stream {
-      cell: Rc::new(move || match self.force() {
+      cell: Arc::new(move || match self.force() {
         StreamCell::Nil => StreamCell::Nil,
         StreamCell::Cons(x, tail) => tail
           .reverse()
@@ -256,7 +256,7 @@ impl<'a, T: Clone + 'a> Stream<'a, T> {
   /// ```
   pub fn take(self, n: usize) -> Stream<'a, T> {
     Stream {
-      cell: Rc::new(move || {
+      cell: Arc::new(move || {
         if n == 0 {
           StreamCell::Nil
         } else {
@@ -387,7 +387,7 @@ mod tests {
     let counter_clone = counter.clone();
 
     let stream = Stream {
-      cell: Rc::new(move || {
+      cell: Arc::new(move || {
         *counter_clone.lock().unwrap() += 1;
         StreamCell::Cons(42, Stream::nil())
       }),
