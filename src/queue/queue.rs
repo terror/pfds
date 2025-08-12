@@ -1,6 +1,6 @@
 use super::*;
 
-pub trait Queue<'a, T: Clone + Send + Sync + 'a> {
+pub trait Queue<'a, T: Clone + Send + Sync + 'a>: Iterator<Item = T> {
   /// Removes and returns a new queue without the front element.
   fn dequeue(self) -> Result<Self, Error>
   where
