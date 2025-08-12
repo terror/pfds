@@ -16,11 +16,13 @@ impl Display for QueueError {
 impl std::error::Error for QueueError {}
 
 pub trait Queue<'a, T: Clone + Send + Sync + 'a> {
+  /// Removes and returns a new queue without the front element.
+  fn dequeue(self) -> Result<Self, QueueError>
+  where
+    Self: Sized;
+
   /// Creates an empty queue.
   fn empty() -> Self;
-
-  /// Returns true if the queue contains no elements.
-  fn is_empty(&self) -> bool;
 
   /// Adds an element to the rear of the queue.
   fn enqueue(self, x: T) -> Self;
@@ -30,13 +32,8 @@ pub trait Queue<'a, T: Clone + Send + Sync + 'a> {
   /// Returns `QueueError::Empty` if the queue is empty.
   fn head(&self) -> Result<T, QueueError>;
 
-  /// Removes and returns a new queue without the front element.
-  ///
-  /// This operation is also known as "dequeue" in traditional queue terminology.
-  /// Returns `QueueError::Empty` if the queue is empty.
-  fn tail(self) -> Result<Self, QueueError>
-  where
-    Self: Sized;
+  /// Returns true if the queue contains no elements.
+  fn is_empty(&self) -> bool;
 }
 
 /// A purely functional queue implementation using the Banker's method.
@@ -57,7 +54,7 @@ pub trait Queue<'a, T: Clone + Send + Sync + 'a> {
 /// q = q.enqueue(1).enqueue(2).enqueue(3);
 ///
 /// assert_eq!(q.head().unwrap(), 1);
-/// q = q.tail().unwrap();
+/// q = q.dequeue().unwrap();
 /// assert_eq!(q.head().unwrap(), 2);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
@@ -69,6 +66,30 @@ pub struct BankersQueue<'a, T: Clone + Send + Sync + 'a> {
 }
 
 impl<'a, T: Clone + Send + Sync + 'a> Queue<'a, T> for BankersQueue<'a, T> {
+  /// Removes the front element and returns a new queue.
+  ///
+  /// This operation is O(1) amortized. It removes the head of the front stream
+  /// and may trigger rebalancing to maintain the invariant.
+  ///
+  /// # Examples
+  /// ```
+  /// use pfds::{BankersQueue, Queue};
+  /// let q = BankersQueue::empty().enqueue(1).enqueue(2);
+  /// let q = q.dequeue().unwrap();
+  /// assert_eq!(q.head().unwrap(), 2);
+  /// ```
+  fn dequeue(self) -> Result<Self, QueueError> {
+    match self.front.tail() {
+      Some(front_tail) => Ok(Self::queue(
+        front_tail,
+        self.len_front - 1,
+        self.rear,
+        self.len_rear,
+      )),
+      None => Err(QueueError::Empty),
+    }
+  }
+
   /// Creates a new empty queue.
   ///
   /// # Examples
@@ -84,23 +105,6 @@ impl<'a, T: Clone + Send + Sync + 'a> Queue<'a, T> for BankersQueue<'a, T> {
       rear: Stream::nil(),
       len_rear: 0,
     }
-  }
-
-  /// Returns true if the queue contains no elements.
-  ///
-  /// This operation is O(1) since we track the front length.
-  ///
-  /// # Examples
-  /// ```
-  /// use pfds::{BankersQueue, Queue};
-  /// let q: BankersQueue<i32> = BankersQueue::empty();
-  /// assert!(q.is_empty());
-  ///
-  /// let q = q.enqueue(42);
-  /// assert!(!q.is_empty());
-  /// ```
-  fn is_empty(&self) -> bool {
-    self.len_front == 0
   }
 
   /// Adds an element to the rear of the queue.
@@ -143,35 +147,28 @@ impl<'a, T: Clone + Send + Sync + 'a> Queue<'a, T> for BankersQueue<'a, T> {
     }
   }
 
-  /// Removes the front element and returns a new queue.
+  /// Returns true if the queue contains no elements.
   ///
-  /// This operation is O(1) amortized. It removes the head of the front stream
-  /// and may trigger rebalancing to maintain the invariant.
+  /// This operation is O(1) since we track the front length.
   ///
   /// # Examples
   /// ```
   /// use pfds::{BankersQueue, Queue};
-  /// let q = BankersQueue::empty().enqueue(1).enqueue(2);
-  /// let q = q.tail().unwrap();
-  /// assert_eq!(q.head().unwrap(), 2);
+  /// let q: BankersQueue<i32> = BankersQueue::empty();
+  /// assert!(q.is_empty());
+  ///
+  /// let q = q.enqueue(42);
+  /// assert!(!q.is_empty());
   /// ```
-  fn tail(self) -> Result<Self, QueueError> {
-    match self.front.tail() {
-      Some(front_tail) => Ok(Self::queue(
-        front_tail,
-        self.len_front - 1,
-        self.rear,
-        self.len_rear,
-      )),
-      None => Err(QueueError::Empty),
-    }
+  fn is_empty(&self) -> bool {
+    self.len_front == 0
   }
 }
 
 impl<'a, T: Clone + Send + Sync + 'a> BankersQueue<'a, T> {
   /// Internal constructor that maintains the queue invariant.
   ///
-  /// Ensures that `len_r ≤ len_f` by rebalancing when necessary.
+  /// Ensures that `len_rear ≤ len_front` by rebalancing when necessary.
   ///
   /// When rebalancing occurs, the rear stream is reversed and appended
   /// to the front stream, and the rear is reset to empty.
@@ -205,42 +202,41 @@ mod tests {
 
   #[test]
   fn empty_queue() {
-    let queue: BankersQueue<i32> = BankersQueue::empty();
+    let queue = BankersQueue::<i32>::empty();
     assert!(queue.is_empty());
     assert!(queue.head().is_err());
-    assert!(queue.tail().is_err());
+    assert!(queue.dequeue().is_err());
   }
 
   #[test]
   fn single_element() {
-    let queue: BankersQueue<i32> = BankersQueue::empty().enqueue(42);
-    assert!(!queue.is_empty());
+    let queue = BankersQueue::<i32>::empty().enqueue(42);
     assert_eq!(queue.head().unwrap(), 42);
-
-    let q_tail = queue.tail().unwrap();
-    assert!(q_tail.is_empty());
+    assert_eq!(queue.dequeue().unwrap(), BankersQueue::<i32>::empty());
   }
 
   #[test]
   fn multiple_elements() {
-    let queue: BankersQueue<i32> =
-      BankersQueue::empty().enqueue(1).enqueue(2).enqueue(3);
+    let queue = BankersQueue::<i32>::empty()
+      .enqueue(1)
+      .enqueue(2)
+      .enqueue(3);
 
     assert_eq!(queue.head().unwrap(), 1);
 
-    let queue = queue.tail().unwrap();
+    let queue = queue.dequeue().unwrap();
     assert_eq!(queue.head().unwrap(), 2);
 
-    let queue = queue.tail().unwrap();
+    let queue = queue.dequeue().unwrap();
     assert_eq!(queue.head().unwrap(), 3);
 
-    let queue = queue.tail().unwrap();
+    let queue = queue.dequeue().unwrap();
     assert!(queue.is_empty());
   }
 
   #[test]
   fn rebalancing() {
-    let mut queue: BankersQueue<i32> = BankersQueue::empty();
+    let mut queue = BankersQueue::<i32>::empty();
 
     for i in 1..=10 {
       queue = queue.enqueue(i);
@@ -248,7 +244,7 @@ mod tests {
 
     for i in 1..=10 {
       assert_eq!(queue.head().unwrap(), i);
-      queue = queue.tail().unwrap();
+      queue = queue.dequeue().unwrap();
     }
 
     assert!(queue.is_empty());
@@ -256,7 +252,7 @@ mod tests {
 
   #[test]
   fn invariants_maintained() {
-    let mut queue: BankersQueue<i32> = BankersQueue::empty();
+    let mut queue = BankersQueue::<i32>::empty();
 
     for i in 1..=5 {
       queue = queue.enqueue(i);
