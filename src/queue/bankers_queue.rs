@@ -29,6 +29,20 @@ pub struct BankersQueue<'a, T: Clone + Send + Sync + 'a> {
   len_rear: usize,
 }
 
+impl<'a, T: Clone + Send + Sync + 'a> Iterator for BankersQueue<'a, T> {
+  type Item = T;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.is_empty() {
+      None
+    } else {
+      let item = self.head().ok()?;
+      *self = self.clone().dequeue().ok()?;
+      Some(item)
+    }
+  }
+}
+
 impl<'a, T: Clone + Send + Sync + 'a> Queue<'a, T> for BankersQueue<'a, T> {
   /// Removes the front element and returns a new queue.
   ///
@@ -222,5 +236,49 @@ mod tests {
       queue = queue.enqueue(i);
       assert!(queue.len_rear <= queue.len_front);
     }
+  }
+
+  #[test]
+  fn iterator() {
+    let mut queue = BankersQueue::<i32>::empty()
+      .enqueue(1)
+      .enqueue(2)
+      .enqueue(3);
+
+    assert_eq!(queue.next(), Some(1));
+    assert_eq!(queue.next(), Some(2));
+    assert_eq!(queue.next(), Some(3));
+    assert_eq!(queue.next(), None);
+  }
+
+  #[test]
+  fn iterator_collect() {
+    let queue = BankersQueue::<i32>::empty()
+      .enqueue(1)
+      .enqueue(2)
+      .enqueue(3)
+      .enqueue(4)
+      .enqueue(5);
+
+    assert_eq!(queue.into_iter().collect::<Vec<i32>>(), vec![1, 2, 3, 4, 5]);
+  }
+
+  #[test]
+  fn iterator_empty() {
+    assert_eq!(BankersQueue::<i32>::empty().next(), None);
+  }
+
+  #[test]
+  fn iterator_rebalancing() {
+    let mut queue = BankersQueue::<i32>::empty();
+
+    for i in 1..=10 {
+      queue = queue.enqueue(i);
+    }
+
+    assert_eq!(
+      queue.into_iter().collect::<Vec<i32>>(),
+      (1..=10).collect::<Vec<i32>>()
+    );
   }
 }
