@@ -42,19 +42,12 @@ pub trait Queue<'a, T: Clone + Send + Sync + 'a> {
 /// A purely functional queue implementation using the Banker's method.
 ///
 /// This implementation maintains two streams:
-/// - `f`: Front stream for efficient head/tail operations
-/// - `r`: Rear stream for efficient enqueue operations
+/// - `front`: Front stream for efficient head/tail operations
+/// - `rear`: Rear stream for efficient enqueue operations
 ///
-/// The key invariant is that `len_r ≤ len_f`, which ensures that
+/// The key invariant is that `len_rear ≤ len_front`, which ensures that
 /// operations remain efficient by automatically rebalancing when
 /// the rear becomes longer than the front.
-///
-/// # Time Complexity
-/// - `empty`: O(1)
-/// - `is_empty`: O(1)
-/// - `enqueue`: O(1) amortized
-/// - `head`: O(1)
-/// - `tail`: O(1) amortized
 ///
 /// # Examples
 /// ```
