@@ -6,7 +6,7 @@ use super::*;
 /// - `front`: Front stream for efficient head/tail operations
 /// - `rear`: Rear stream for efficient enqueue operations
 ///
-/// The key invariant is that `len_rear ≤ len_front`, which ensures that
+/// The key invariant is that `len_rear <= len_front`, which ensures that
 /// operations remain efficient by automatically rebalancing when
 /// the rear becomes longer than the front.
 ///
@@ -22,14 +22,14 @@ use super::*;
 /// assert_eq!(q.head().unwrap(), 2);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub struct BankersQueue<'a, T: Clone + Send + Sync + 'a> {
+pub struct BankersQueue<'a, T: QueueElement + 'a> {
   front: Stream<'a, T>,
   len_front: usize,
   rear: Stream<'a, T>,
   len_rear: usize,
 }
 
-impl<'a, T: Clone + Send + Sync + 'a> Iterator for BankersQueue<'a, T> {
+impl<'a, T: QueueElement + 'a> Iterator for BankersQueue<'a, T> {
   type Item = T;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -43,7 +43,7 @@ impl<'a, T: Clone + Send + Sync + 'a> Iterator for BankersQueue<'a, T> {
   }
 }
 
-impl<'a, T: Clone + Send + Sync + 'a> Queue<'a, T> for BankersQueue<'a, T> {
+impl<'a, T: QueueElement + 'a> Queue<'a, T> for BankersQueue<'a, T> {
   /// Removes the front element and returns a new queue.
   ///
   /// This operation is O(1) amortized. It removes the head of the front stream
@@ -143,10 +143,10 @@ impl<'a, T: Clone + Send + Sync + 'a> Queue<'a, T> for BankersQueue<'a, T> {
   }
 }
 
-impl<'a, T: Clone + Send + Sync + 'a> BankersQueue<'a, T> {
+impl<'a, T: QueueElement + 'a> BankersQueue<'a, T> {
   /// Internal constructor that maintains the queue invariant.
   ///
-  /// Ensures that `len_rear ≤ len_front` by rebalancing when necessary.
+  /// Ensures that `len_rear <= len_front` by rebalancing when necessary.
   ///
   /// When rebalancing occurs, the rear stream is reversed and appended
   /// to the front stream, and the rear is reset to empty.
